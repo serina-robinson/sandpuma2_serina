@@ -18,6 +18,8 @@ import subprocessing, pplacer, fasta, module_results
 ## antismash dev team might has better places to put these functions now).
 #from antismash.common import fasta, subprocessing, pplacer, module_results
 #from antismash.common.secmet import Record
+# from antismash.common.secmet import AntismashDomain, FeatureLocation
+from antismash.common.secmet.feature import AntismashDomain, FeatureLocation
 
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
@@ -658,7 +660,7 @@ def split_into_groups(fasta: Dict[str, str], n_groups: int) -> Dict[str, List[st
 
 
 def run_sandpuma(name2seq: Dict[str, str], threads: int, knownfaa: str, wildcard: str, snn_thresh: float, knownasm: str, jackknife_data: str, ref_aln: str, ref_tree: str, ref_pkg: str, masscutoff:float, seed_file: str, piddb: str, a: float, extract_fa: str, nncodes: str) -> Dict[str, SandpumaResults]:
-    """ SANDPUMA parallelized pipleline
+    """ SANDPUMA parallelized pipeline
     Arguments:
         name2seq: dictionary of seq names (str) to seqs (str)
         threads: number of threads
@@ -763,7 +765,7 @@ def run_sandpuma(name2seq: Dict[str, str], threads: int, knownfaa: str, wildcard
     args = []
     for group in groups:
          args.append([group, groups[group], knownfaa, wildcard, snn_thresh, knownasm, ref_aln, ref_tree, ref_pkg, masscutoff, stach_fa, seed_fa, i2s, piddb, nn_clf, scaler, extract_fa, s_str, p_str])
-    # return(subprocessing.parallel_function(sandpuma_multithreaded, args, cpus=threads))
+    return(subprocessing.parallel_function(sandpuma_multithreaded, args, cpus=threads))
 
 
 def xval_sandpuma(knownfaa: str, jackknife_data: str, nncodes: str):
@@ -905,8 +907,17 @@ xval_sandpuma( fasta.read_fasta(data_dir+'sp1.adomains.faa'),
 )
 '''
 
-## Uncomment below to predict from a fasta input
-test_fa = fasta.read_fasta(sys.argv[1])
+## Create an AntismashDomain object # Only for testing
+create_domain_fa = fasta.read_fasta(sys.argv[1])
+domain_list = []
+for i, domain in enumerate(create_domain_fa):
+    # domain_list.append(AntismashDomain(FeatureLocation(1, 1, 1))) # for use with Marc's forked version of antiSMASH5
+    domain_list.append(AntismashDomain(FeatureLocation(1, 1, 1), tool="test")) # arbitrary feature location for testing
+    domain_list[i].domain_id = list(create_domain_fa.keys())[i]
+    domain_list[i].translation = list(create_domain_fa.values())[i]
+
+
+test_fa = { domain_list[i].domain_id : domain_list[i].translation for i in range(0, len(domain_list) ) }
 threads = 6 ## This will need to be set by antiSMASH upstream
 data_dir = '../flat/'
 knownfaa = fasta.read_fasta(data_dir+'sp1.adomains.faa')
@@ -925,8 +936,39 @@ nncodes = data_dir+'sp1.nncodes.tsv'
 a = 0.1 ## for neural net
 
 
+# Sample input
+# .fasta file
+# Want it to be a list of AntismashDomains
+
+'''Ideally the new SANDPUMA code should accept a list of AntismashDomains
+and return a Prediction subclass, just as the current
+'run_nrpspredictor' function does. SANDPUMA will need to make it's own
+subclass of Prediction rather than using the PredictorSVMResult, but
+some of the logic might be useful to look at.
+
+If you need to, you can change the input to something else that is
+easily reconstructed from a list of AntismashDomains and it won't have
+a large impact. Changing the return type will mean there's a lot more
+work in integrating the SANDPUMA results, when/if it gets to that
+point.
+
+def run_nrpspredictor(a_domains: List[AntismashDomain], options: ConfigType) -> Dict[str, Prediction]:
+    """ Runs NRPSPredictor2 over the provided A domains.
+
+        Arguments:
+            a_domains: a list of AntismashDomains, one for each A domain
+            options: antismash options
+
+        Returns:
+            a dictionary mapping each domain name to a PredictorSVMResult
+    """'''
+
+# Sample output 
+# BGC0000400_AGM16413.1_1312_mod2_lys     lys     100.0   no_confident_result     no_confident_result     0.0     lys     0.9966838091778889      orn     0.0009283922343452548   trp     0.00040504979911781607
+# BGC0000463_AGM14934.1_2646_mod3_gln     gln     100.0   gln     gln     1.1697471848703045      gln     0.9987391242837972      glu     0.00037256449213406595  leu     0.0002943512002954393
+
 ## Run SANDPUMA
-'''results = run_sandpuma(test_fa, threads, knownfaa, wildcard, snn_thresh, knownasm, jackknife_data, ref_aln, ref_tree, ref_pkg, masscutoff, seed_file, piddb, a, extract_fa, nncodes)
+results = run_sandpuma(test_fa, threads, knownfaa, wildcard, snn_thresh, knownasm, jackknife_data, ref_aln, ref_tree, ref_pkg, masscutoff, seed_file, piddb, a, extract_fa, nncodes)
 
 for r in results:
     for q in r:
@@ -943,4 +985,4 @@ for r in results:
                          str(r[q].neuralnet.second_prob),
                          r[q].neuralnet.third_pred,
                          str(r[q].neuralnet.third_prob),
-        ]))'''
+        ]))

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from antismash.common import fasta, module_results, pfamdb, subprocessing
 from antismash.common.secmet import Record, CDSFeature
-from antismash.common.secmet.feature import FeatureLocation, PFAMDomain
+# from antismash.common.secmet.feature import FeatureLocation, PFAMDomain
 
 from ete3 import Tree
 
